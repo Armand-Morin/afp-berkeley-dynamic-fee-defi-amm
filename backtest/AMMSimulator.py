@@ -8,6 +8,7 @@ class Transaction:
     def __init__(self, record: pd.Series):
         self.amount0 = record.amount0
         self.amount1 = record.amount1
+        self.amountUSD = record.amountUSD
         self.timestamp = record.timestamp
         self.price = record.price
 
@@ -48,24 +49,28 @@ class SimplePnLModel(IPnLModel):
     def calculate(self, new_order: Transaction, fees: int):
         query_time = pd.to_datetime(new_order.timestamp, unit='s')
         mkt_price = self.market_info.get_price_for_trader(query_time)
-        # print("JOey ", new_order.amount0, (mkt_price, new_order.price), fees)
-        # return new_order.amount0 * (mkt_price - new_order.price) - fees
-        return 1
+        swap_price = abs(new_order.amount0 / new_order.amount1)
+        swap_amount = abs(new_order.amountUSD / new_order.amount0)
+        swap_direct = 1 if new_order.amount0 > 0 else -1
+        return swap_direct * swap_amount * (mkt_price - swap_price) - fees
 
 class Trader:
     def __init__(self, id: str):
         self.id = id
-        self.cum_pnl: list[float] = [0.0]
+        self.fees_total: float = 0.0
+        self.cum_pnl: pd.Series = pd.Series(dtype=float)
         self.history: list[Transaction] = []
     
     def on_new_trade(self, trade: pd.Series, fees_model: ITransactFeesModel, pnl_model: IPnLModel):
         self.history.append(Transaction(trade))
         fees = fees_model.calculate(self, trade)
-        tmp_pnl = self.cum_pnl[-1] + pnl_model.calculate(trade, fees)
-        self.cum_pnl.append(tmp_pnl)
+        self.fees_total += fees
+        tmp_pnl = self.get_current_pnl() + pnl_model.calculate(trade, fees)
+        ts_datetime = pd.to_datetime(trade.timestamp, unit='s')
+        self.cum_pnl.loc[ts_datetime] = tmp_pnl
 
     def get_current_pnl(self):
-        return self.cum_pnl[-1]
+        return 0.0 if self.cum_pnl.empty else self.cum_pnl.iloc[-1]
 
 class AMMSimulator:
     """Simulation of automatic market maker transactions"""
@@ -82,7 +87,7 @@ class AMMSimulator:
         self.raw_tx_data.sort_values('timestamp')
 
     def _datetime_filter(self, start, end):
-        return (self.raw_tx_data.index >= start) & (self.raw_tx_data.index <= end)
+        return self.raw_tx_data[(self.raw_tx_data.index >= start) & (self.raw_tx_data.index <= end)]
     
     def _run_trader_records(self, trader_records: pd.DataFrame):
         trader_id = trader_records['sender'].iloc[0]
@@ -97,17 +102,11 @@ class AMMSimulator:
         start_time = start_time or self.raw_tx_data.index[0]
         end_time = end_time or self.raw_tx_data.index[-1]
 
+        #TODO: filter
+        # records = self._datetime_filter(start_time, end_time)
         records = self.raw_tx_data
-        # print(self.raw_tx_data.info())
         records.groupby('sender').apply(self._run_trader_records)
 
         print(sorted([t.get_current_pnl() for t in self.traders.values()])[-10:])
 
-
-class SimpleTransactFeesModel(ITransactFeesModel):
-    def calculate(self, trader, new_order: Transaction):
-        fees_factor = max(0, trader.get_current_pnl()*0.002)
-        # print(f'model: {new_order.amount0}, {fees_factor}, {new_order.amount0 * fees_factor}!!')
-        # return new_order.amount0 * fees_factor
-        return 0
     
