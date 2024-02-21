@@ -4,6 +4,7 @@ import plotly.express as px
 
 from datetime import datetime, timedelta
 
+
 class Transaction:
     def __init__(self, record: pd.Series):
         self.amount0 = record.amount0
@@ -11,6 +12,8 @@ class Transaction:
         self.amountUSD = record.amountUSD
         self.timestamp = record.timestamp
         self.price = record.price
+
+
 
 class MarketInfo:
     def __init__(self, market_prices: pd.Series, amm_delay: timedelta):
@@ -28,6 +31,8 @@ class MarketInfo:
     def get_delayed_price_for_amm(self, query_time):
         delayed_time = query_time - self.amm_delay
         return self._search(delayed_time)
+    
+    
 
 class ITransactFeesModel:
     """Transaction fees calculation interface"""
@@ -45,6 +50,8 @@ class IPnLModel:
     def calculate(self, new_order: Transaction, fees: int):
         pass
 
+
+
 class SimplePnLModel(IPnLModel):
     def calculate(self, new_order: Transaction, fees: int):
         query_time = pd.to_datetime(new_order.timestamp, unit='s')
@@ -53,6 +60,8 @@ class SimplePnLModel(IPnLModel):
         swap_amount = abs(new_order.amountUSD / new_order.amount0)
         swap_direct = 1 if new_order.amount0 > 0 else -1
         return swap_direct * swap_amount * (mkt_price - swap_price) - fees
+
+
 
 class Trader:
     def __init__(self, id: str):
@@ -71,6 +80,8 @@ class Trader:
 
     def get_current_pnl(self):
         return 0.0 if self.cum_pnl.empty else self.cum_pnl.iloc[-1]
+
+
 
 class AMMSimulator:
     """Simulation of automatic market maker transactions"""
