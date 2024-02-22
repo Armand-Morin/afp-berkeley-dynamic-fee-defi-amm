@@ -3,6 +3,7 @@ import pandas as pd
 from tx_fee import ITransactFeesModel
 from pnl_model import IPnLModel
 
+
 class Trader:
     def __init__(self, id: str):
         self.id = id
