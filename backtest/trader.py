@@ -1,7 +1,10 @@
-from market import MarketInfo, Transaction
-import pandas as pd
-from tx_fee import ITransactFeesModel
 from pnl_model import IPnLModel
+from transaction import Transaction
+from fees_model import ITransactFeesModel
+from cex_market_info import CEXMarketInfo
+
+from config import *
+
 
 
 class Trader:

@@ -1,14 +1,16 @@
-from market import MarketInfo, Transaction
+
+from cex_market_info import CEXMarketInfo
+from transaction import Transaction
+from config import *
+
 
 class IPnLModel:
     """Trader's PnL calculation interface"""
-    def __init__(self, market_info: MarketInfo):
+    def __init__(self, market_info: CEXMarketInfo):
         self.market_info = market_info
 
     def calculate(self, new_order: Transaction, fees: int):
         pass
-
-
 
 class SimplePnLModel(IPnLModel):
     def calculate(self, new_order: Transaction, fees: int):
