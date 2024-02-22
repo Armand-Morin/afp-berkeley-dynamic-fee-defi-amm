@@ -1,4 +1,5 @@
 from market import MarketInfo, Transaction
+from trader import Trader
 import numpy as np
 
 # methodology:
@@ -7,6 +8,8 @@ import numpy as np
 # Aggregate the metrics to get the trader perfs 
 # Charge the fee per trader
 
+def zscore(series):
+    return (series - series.mean()) / series.std()
 
 
 def sigmoid(x):
@@ -28,8 +31,24 @@ class ITransactFeesModel:
     """Transaction fees calculation interface"""
     def __init__(self, market_info: MarketInfo):
         self.market_info = market_info
+        
+    def quote_fee():
+        pass
+    
+
+# Define a simple fees model
+class SimpleTransactFeesModel(ITransactFeesModel):
+    def calculate(self, trader: Trader, new_order: Transaction):
+        fees_factor = max(0, trader.get_current_pnl()) * 5*10**(-3)
+        return new_order.amount0 * fees_factor
+
 
     def calculate(self, trader, new_order: Transaction):
+        data = pd.read_pickle('Merged_CEX_DEX_v2_p1.pkl')
+        
+        data['LVR_nbtoken'] = data['LVR']/data['price_dex']
+        data['LVR_pnl_percent'] = (np.abs(data['LVR_clean']*data['amountUSD'])-data['tcost_usd'])*100/data['amountUSD']
+        data['LVR_zscore'] = zscore(data['LVR'])
         
         agg_sender = data[['LVR_pnl_percent', 'LVR_zscore', 'sender']].groupby('sender').sum()
         agg_origin = data[['LVR_pnl_percent', 'LVR_zscore', 'origin']].groupby('origin').sum()
@@ -55,13 +74,22 @@ class ITransactFeesModel:
 
         merged_dict = {key: dic_fee.get(key, 0) + dic_base_fee.get(key, 0) for key in set(dic_fee) | set(dic_base_fee)}
         
+        please = pd.DataFrame.from_dict(merged_dict, orient='index', columns=['fees'])
+        please = please.reset_index().rename(columns={'index': 'address'}).sort_values(by='fees', ascending=False)
+
+        merged_data = data.merge(please.rename(columns={'fees' : 'f1'}), left_on='sender', how='left', right_on='address')
+        merged_data = merged_data.merge(please.rename(columns={'fees' : 'f2'}), left_on='origin', how='left', right_on='address')
+        merged_data = merged_data.merge(please.rename(columns={'fees' : 'f3'}), left_on='recipient', how='left', right_on='address')
+
+        merged_data[['f1', 'f2', 'f3']] = merged_data[['f1', 'f2', 'f3']].fillna(0).clip(lower=0.05)
+
+        merged_data['mean_fee'] = merged_data[['f1', 'f2', 'f3']].mean(axis=1) 
+        #merged_data['max_fee']  = merged_data[['f1', 'f2', 'f3']].max(axis=1) 
+
+        merged_data = merged_data.drop(columns=['address_x', 'address_y', 'address', 'f1', 'f2', 'f3']).fillna(0.5)
+
+        (merged_data['mean_fee'] * merged_data['amountUSD']/100).sum()
+        
         return merged_dict
-    
-    
-    
-    
-
-
-
 
 
