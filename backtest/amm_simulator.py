@@ -1,18 +1,20 @@
+from numpy import column_stack
 from pnl_model import IPnLModel
 from transaction import Transaction
 from fees_model import ITransactFeesModel
-from cex_market_info import CEXMarketInfo
+from cex_market_info import ICEXMarketInfo
 from trader import Trader
+from IPython.display import display
 
 from config import *
 
 class AMMSimulator:
     """Simulation of automatic market maker transactions"""
 
-    def __init__(self, market_info: CEXMarketInfo, fees_model: ITransactFeesModel,
+    def __init__(self, cex_market_info: ICEXMarketInfo, fees_model: ITransactFeesModel,
                  pnl_model: IPnLModel, transactions_data: pd.DataFrame):
         """Initialize a new instance of the AMMSimulator class."""
-        self.market_info = market_info
+        self.cex_market_info = cex_market_info
         self.fees_model = fees_model
         self.pnl_model = pnl_model
         self.raw_tx_data = transactions_data
@@ -41,6 +43,10 @@ class AMMSimulator:
         records = self.raw_tx_data
         records.groupby('sender').apply(self._run_trader_records)
 
-        print(sorted([t.get_current_pnl() for t in self.traders.values()])[-10:])
+        df_pnl = pd.DataFrame(
+            [(t.id, t.get_current_pnl()) for t in self.traders.values()],
+            columns=['Trader', 'PnL']
+        )
+        display(df_pnl.sort_values('PnL', ascending=False).iloc[:10])
 
     
