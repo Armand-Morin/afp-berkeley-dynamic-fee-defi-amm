@@ -6,4 +6,3 @@ class Transaction:
         self.amount1 = record.amount1
         self.amountUSD = record.amountUSD
         self.timestamp = record.timestamp
-        self.price = record.price

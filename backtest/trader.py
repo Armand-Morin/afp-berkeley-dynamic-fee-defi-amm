@@ -1,7 +1,6 @@
 from pnl_model import IPnLModel
 from transaction import Transaction
 from fees_model import ITransactFeesModel
-from cex_market_info import CEXMarketInfo
 
 from config import *
 
