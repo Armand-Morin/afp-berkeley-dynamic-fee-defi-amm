@@ -23,3 +23,6 @@ class Trader:
 
     def get_current_pnl(self):
         return 0.0 if self.cum_pnl.empty else self.cum_pnl.iloc[-1]
+    
+    def get_past_transactions(self):
+        return self.history
